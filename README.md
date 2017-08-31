@@ -17,3 +17,10 @@ This script takes the array outputs of olpefit and determines the position angle
 
 # olpefit_tacc
 These scripts accomplish the same as olpe fit but are engineered to run more effectively on TACC supercomputer. olpefit_tacc_interactivepart contains the interactive portion of the model generation phase of OLPE Fit so it can be run quickly, and its outputs feed into olpefit_tacc allowing that to be run in a "fix it and forget it" way.  This is so that all the interactive part can be done at once for a whole epoch prior to running an sbatch on TACC.
+
+## NIRC2 bad pix
+Bad pix is a list of known bad pixels of NIRC2.  OLPE Fit flags these pixels and marks then as NaNs in image data so they don't contribute to the fitting algorithm.
+
+## Disortion Solution Files
+nirc2_distort_X_post20150413_v1.fits and nirc2_distort_Y_post20150413_v1.fits are look up tables for the NIRC2 distortion solution by Service et.al. 2016 (http://iopscience.iop.org/article/10.1088/1538-3873/128/967/095004/pdf)
+nirc2_X_distortion.fits and nirc2_Y_distortion.fits are distortion solutions by Yelda et.al. 2010 (http://iopscience.iop.org/article/10.1088/0004-637X/725/1/331/pdf)
