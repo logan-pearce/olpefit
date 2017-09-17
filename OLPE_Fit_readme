@@ -1,0 +1,25 @@
+How to run OLPE_Fit:
+(These scripts are written to take image files stored using my directory scheme: "starsystem/observation_epoch_date(year_month_date)/imagefiles.fits")
+
+1.  Upload all images to TACC:
+Use the script "upload_epoch_to_tacc.py" to upload every fits image in an epoch folder.
+Before running the script, make a directory in the TACC work directory for the epoch with the same file path as on home computer.
+Command line: "python upload_epoch_to_tacc.py GSC6214/2008_06_17"
+
+2.  Log on to TACC.  Use the flags -XY to allow you to interact through ssh (requried for step 1).  In the TACC work directory, run OLPE Fit step 1 on all images in the epoch.
+First start an idev session (so you're not running jobs on a login node): Command line (in TACC work directory): 'idev'
+Then run step 1: "python olpe_fit_tacc_step1.py GSC6214/2008_06_17"
+It will call up each image and ask for your input on initial guess location for companion and star for each image, and output a text file to the same directory subscripted "_initial_position_guess"
+
+3.  Schedule step 2 and 3 for each image:
+Either on the home computer or in TACC, run the script "write_epoch_sbatch.py"  using the syntax "python write_epoch_sbatch.py GSC6214/2008_06_17".  This script creates the sbatch text files for scheduling TACC jobs on the slurm scheduler (If running from home computer, you will have to scp all text files to TACC before proceeding)
+In the TACC command line from the work directory, schedule each step 2 job using the command: "sbatch GSC6214/2017_06_27/sbatch/GSC6214_2017_26771_sbatch_step2".  The script "execute_step3_scheduler.py" will input these commands for all images in an epoch using the command "python execute_step2_scheduler.py GSC6214/2008_06_17".
+Step 2 will run for 6 hours on each image.  You should get emails when the jobs have been scheduled and completed.
+
+When step 2 has been completed, run "execute_step3_scheduler.py" to complete scheduling step 3 for each image, which will take 24 hours to run.
+
+4.  When all images have completed step 3, return to the home computer and run "download_from_tacc.py" to download all the step 3 outputs to home computer.  Command line (on home computer terminal): "python download_from_tacc.py GSC6214/2008_06_17"
+Step 3 outputs csv files of all parameter arrays for each image.  This script pulls down those files and places them in the epoch's directory in a folder called "imagenumber_olpefit_results_tacc"
+
+5.  Step 4 takes the output from step 3 and computes PA and Separation in each image.  From the home computer, run in the command line "python epoch_pasep.py GSC6214/2008_06_16") to run step 4 on the whole epoch at once (Individually, run "python olpe_fit_tacc_step4.py GSC6214/2008_06_17/N2.20080617.29357.fits").  Output from step 4 will be a text file in the epoch directory called "epoch_positions_olpefit_pasep" (Position Angle and Separation in degrees and milliarcseconds) and "epoch_positions_olpefit_radec" (RA and Dec mean and std in milliarcseconds), which can be fed into the epoch position processing pipeline, and "epoch_positions_olpefit_log" which gives more detailed information on the results for each image.
+To do a whole epoch at once, run "python execute_step4.py GSC6214/2008_06_17"
