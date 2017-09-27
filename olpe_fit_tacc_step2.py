@@ -31,11 +31,13 @@ def sampler(pars):  #The model testing function
     chinew = []
     for xcs3,xcc3,ycs3,ycc3,amps13,ampc13,ampratio3,bkgd3,sigmax3,sigmay3,sigmax23,sigmay23,theta3,theta23 in zip(xcs4,xcc4,ycs4,ycc4,amps14,\
                                     ampc14,ampratio4,bkgdfill4,sigmax4,sigmay4,sigmax24,sigmay24,theta4,theta24):
+        amps13=amps13-bkgd3
         amps23=amps13*ampratio3
         amps3=amps13-amps23
         psfs1 = models.Gaussian2D(amplitude = amps3, x_mean=xcs3, y_mean=ycs3, x_stddev=sigmax3, y_stddev=sigmay3, theta=theta3)
         psfs2 = models.Gaussian2D(amplitude = amps23, x_mean=xcs3, y_mean=ycs3, x_stddev=sigmax23, y_stddev=sigmay23, theta=theta23)
         psfs = psfs1(x,y)+psfs2(x,y)
+        ampc13=ampc13-bkgd3
         ampc23=ampc13*ampratio3
         ampc3=ampc13-ampc23
         psfc1 = models.Gaussian2D(amplitude = ampc3, x_mean=xcc3, y_mean=ycc3, x_stddev=sigmax3, y_stddev=sigmay3, theta=theta3)
@@ -190,10 +192,7 @@ if ampsexists:
 else:
     # 1 = Narrow gaussian; 2 = wide gaussian
     #Amplitudes initial guess:
-    amps1=image[yms,xms] #max pixel value for star
-    amps2=amps1*0.2 #emperically determined decent fit for initial guess
-    amps = amps1-amps2 #amplitude of narrow gaussian is the max pixel data minus to amp of wide gaussian, so added
-    #together they match the max pixel value of the star
+    amps=image[yms,xms] #max pixel value for star
     amps = [amps]*NWalkers
     ampsarray = [amps[0] for i in range(NWalkers)] # initialize parameter array
 
@@ -206,9 +205,7 @@ if ampcexists:
     ampcarray = [np.array([float(string) for string in d[i].split(',')]) for i in range(len(d))]
     ampc = [ampcarray[i][len(ampcarray[0])-1] for i in range(NWalkers)]
 else:
-    ampc1=image[ymc,xmc] #max pixel value of companion
-    ampc2=ampc1*0.2
-    ampc=ampc1-ampc2
+    ampc=image[ymc,xmc] #max pixel value of companion
     ampc = [ampc]*NWalkers
     ampcarray = [ampc[0] for i in range(NWalkers)]
 
@@ -221,7 +218,7 @@ if ampratioexists:
     ampratioarray = [np.array([float(string) for string in d[i].split(',')]) for i in range(len(d))]
     ampratio = [ampratioarray[i][len(ampratioarray[0])-1] for i in range(NWalkers)]
 else:
-    ampratio = [0.2]*NWalkers
+    ampratio = [0.2]*NWalkers #Emperically determined to be a godd estimate of wide to narrow gaussian amplitude ratio
     ampratioarray = [ampratio[0] for i in range(NWalkers)]
     
 bkgdexists = os.path.exists(directory+'/'+'bkgdarray.csv')
@@ -233,7 +230,16 @@ if bkgdexists:
     bkgdarray = [np.array([float(string) for string in d[i].split(',')]) for i in range(len(d))]
     bkgdfill = [bkgdarray[i][len(bkgdarray[0])-1] for i in range(NWalkers)]
 else:
-    bkgdfill = [1.0]*NWalkers
+    fileguess = filename.split('/')[0]+'/'+filename.split('/')[1]+'/'+filename.split('.')[2]+ '_initial_position_guess'
+    positionguess = np.loadtxt(open(fileguess,"rb"),delimiter=' ')
+    back_x,back_y = positionguess[4],positionguess[5]
+    ymin_c = back_x
+    ymax_c = back_x+10
+    xmin_c = back_y
+    xmax_c = back_y+10
+    box = image[ymin_c:ymax_c,xmin_c:xmax_c]
+    bkgdfill = np.mean(box)
+    bkgdfill = [bkgdfill]*NWalkers
     bkgdarray=[bkgdfill[0] for i in range(NWalkers)]
     
 sigmaxexists = os.path.exists(directory+'/'+'sigmaxarray.csv')
@@ -360,11 +366,13 @@ print 'Making initial model guess...'
 chi = []
 
 for xcs1,xcc1,ycs1,ycc1,amps11,ampc11,ampratio1,bkgd1,sigmax1,sigmay1,sigmax21,sigmay21,theta1,theta21 in zip(xcs,xcc,ycs,ycc,amps,ampc,ampratio,bkgdfill,sigmax,sigmay,sigmax2,sigmay2,theta,theta2):
-    amps21=amps11*ampratio1
-    amps1=amps11-amps21
+    amps11 = amps11 - bkgd1 #Subtract off the sky background from model amplitude
+    amps21=amps11*ampratio1 #Amplitude of wide gaussian is a fraction of the total amplitude
+    amps1=amps11-amps21 #Amplitude of narrow gaussian is the total amplitude minus the narrow gaussian
     psfs1 = models.Gaussian2D(amplitude = amps1, x_mean=xcs1, y_mean=ycs1, x_stddev=sigmax1, y_stddev=sigmay1, theta=theta1)
     psfs2 = models.Gaussian2D(amplitude = amps21, x_mean=xcs1, y_mean=ycs1, x_stddev=sigmax21, y_stddev=sigmay21, theta=theta21)
     psfs = psfs1(x,y)+psfs2(x,y)
+    ampc11 = ampc11 - bkgd1
     ampc21=ampc11*ampratio1
     ampc1=ampc11-ampc21
     psfc1 = models.Gaussian2D(amplitude = ampc1, x_mean=xcc1, y_mean=ycc1, x_stddev=sigmax1, y_stddev=sigmay1, theta=theta1)
@@ -376,6 +384,7 @@ for xcs1,xcc1,ycs1,ycc1,amps11,ampc11,ampratio1,bkgd1,sigmax1,sigmay1,sigmax21,s
     chi1 = ((image-psf)/err)**2
     chi1 = np.sum(chi1)
     chi.append(chi1)
+
 
 ## Initialize parameters array:
 #"parameters" is the master array of the 13 variables + chi^2 for each of the walkers.  It is therefore a 14xNWalkers array
@@ -423,7 +432,7 @@ xcscrossed,ycscrossed,xcccrossed,ycccrossed,ampscrossed,ampccrossed,ampratiocros
 # Set convergence criteria:
 convergenceratio = 0.05 # This is the fraction of the scatter among the data points that will be the convergence criteria for scatter between the walker means.  0.1 means scatter between the means that is 1/10th of the scatter among the data points will determine convergence is met.
 
-burn_in=4500 # This sets the burn in rate.
+burn_in=4500 # This sets how many trials for each variable in step 2.
 
 # Run the loop until all parameters have been sampled a minimum number of times:
 while xcs_tot <= burn_in or ycs_tot <= burn_in or xcc_tot <= burn_in or ycc_tot <= burn_in or amps_tot <= burn_in\
@@ -834,6 +843,18 @@ while xcs_tot <= burn_in or ycs_tot <= burn_in or xcc_tot <= burn_in or ycc_tot 
         print 'ampc:',ampc_ac,ampc_tot
         print 'ampratio:',ampratio_ac,ampratio_tot
         print 'bkgd:',bkgd_ac,bkgd_tot
+        print ''
+        print 'Current values:'
+        print 'xcs:',parameters[0]
+        print 'ycs:',parameters[1]
+        print 'xcc:',parameters[2]
+        print 'ycc:',parameters[3]
+        print 'amps:',parameters[4]
+        print 'ampc:',parameters[5]
+        print 'ampratio:',parameters[6]
+        print 'bkgd:',parameters[7]
+        
+        
 
     
 

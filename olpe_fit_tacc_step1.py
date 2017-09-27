@@ -79,6 +79,31 @@ for line in z:
     xms,yms = coords[0],coords[1]
     xms,yms = int(xms),int(yms)
 
+    print 'Press "D" key to select backgroung smaple'
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.imshow(image,cmap='gray',origin='lower',vmin=np.percentile(image,5),vmax=np.percentile(image,95))
+    ax.set_title('Hover mouse over an empty sky area and type D')
+    coordc = []
+    def onclick(event):
+        global ix, iy
+        ix, iy = event.xdata, event.ydata
+        print 'x = %d, y = %d'%(
+            ix, iy)
+
+        global coordc
+        coordc.append((ix, iy))
+        if len(coordc) == 1:
+            fig.canvas.mpl_disconnect(cid)
+        plt.close()
+        return coordc
+    cid = fig.canvas.mpl_connect('key_press_event', onclick)
+    plt.show()
+    print coordc
+    coordc=coordc[0]
+    bkgdx,bkgdy = coordc[0],coordc[1]
+    bkgdx,bkgdy = int(bkgdx),int(bkgdy)
+
     #### Make an aperture around the click location and find the pixel with the max flux within that aperture #####
     ymins=yms-11
     ymaxs=ymins+21
@@ -103,7 +128,7 @@ for line in z:
     # Write out initial guess to file:
     filename=line
     newfile = filename.split('/')[0]+'/'+filename.split('/')[1]+'/'+filename.split('.')[2]+ '_initial_position_guess'
-    string = str(xcs)+' '+str(ycs)+' '+str(xcc)+' '+str(ycc)
+    string = str(xcs)+' '+str(ycs)+' '+str(xcc)+' '+str(ycc)+' '+str(bkgdx)+' '+str(bkgdy)
     k = open(newfile, 'a')
     k.write(string + "\n")
     k.close()

@@ -9,7 +9,7 @@ Command line: "python upload_epoch_to_tacc.py GSC6214/2008_06_17"
 2.  Log on to TACC.  Use the flags -XY to allow you to interact through ssh (requried for step 1).  In the TACC work directory, run OLPE Fit step 1 on all images in the epoch.
 First start an idev session (so you're not running jobs on a login node): Command line (in TACC work directory): 'idev'
 Then run step 1: "python olpe_fit_tacc_step1.py GSC6214/2008_06_17"
-It will call up each image and ask for your input on initial guess location for companion and star for each image, and output a text file to the same directory subscripted "_initial_position_guess"
+It will call up each image and ask for your input on initial guess location for companion and star for each image, and to select an empty area to measure the sky background, and output a text file to the same directory subscripted "_initial_position_guess"
 
 3.  Schedule step 2 and 3 for each image:
 Either on the home computer or in TACC, run the script "write_epoch_sbatch.py"  using the syntax "python write_epoch_sbatch.py GSC6214/2008_06_17".  This script creates the sbatch text files for scheduling TACC jobs on the slurm scheduler (If running from home computer, you will have to scp all text files to TACC before proceeding)

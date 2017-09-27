@@ -31,11 +31,13 @@ def sampler(pars):  #The model testing function
     chinew = []
     for xcs3,xcc3,ycs3,ycc3,amps13,ampc13,ampratio3,bkgd3,sigmax3,sigmay3,sigmax23,sigmay23,theta3,theta23 in zip(xcs4,xcc4,ycs4,ycc4,amps14,\
                                     ampc14,ampratio4,bkgdfill4,sigmax4,sigmay4,sigmax24,sigmay24,theta4,theta24):
+        amps13=amps13-bkgd3
         amps23=amps13*ampratio3
         amps3=amps13-amps23
         psfs1 = models.Gaussian2D(amplitude = amps3, x_mean=xcs3, y_mean=ycs3, x_stddev=sigmax3, y_stddev=sigmay3, theta=theta3)
         psfs2 = models.Gaussian2D(amplitude = amps23, x_mean=xcs3, y_mean=ycs3, x_stddev=sigmax23, y_stddev=sigmay23, theta=theta23)
         psfs = psfs1(x,y)+psfs2(x,y)
+        ampc13=ampc13-bkgd3
         ampc23=ampc13*ampratio3
         ampc3=ampc13-ampc23
         psfc1 = models.Gaussian2D(amplitude = ampc3, x_mean=xcc3, y_mean=ycc3, x_stddev=sigmax3, y_stddev=sigmay3, theta=theta3)
@@ -446,11 +448,13 @@ print 'Making initial model guess...'
 chi = []
 
 for xcs1,xcc1,ycs1,ycc1,amps11,ampc11,ampratio1,bkgd1,sigmax1,sigmay1,sigmax21,sigmay21,theta1,theta21 in zip(xcs,xcc,ycs,ycc,amps,ampc,ampratio,bkgdfill,sigmax,sigmay,sigmax2,sigmay2,theta,theta2):
-    amps21=amps11*ampratio1
-    amps1=amps11-amps21
+    amps11 = amps11 - bkgd1 #Subtract off the sky background from model amplitude
+    amps21=amps11*ampratio1 #Amplitude of wide gaussian is a fraction of the total amplitude
+    amps1=amps11-amps21 #Amplitude of narrow gaussian is the total amplitude minus the narrow gaussian
     psfs1 = models.Gaussian2D(amplitude = amps1, x_mean=xcs1, y_mean=ycs1, x_stddev=sigmax1, y_stddev=sigmay1, theta=theta1)
     psfs2 = models.Gaussian2D(amplitude = amps21, x_mean=xcs1, y_mean=ycs1, x_stddev=sigmax21, y_stddev=sigmay21, theta=theta21)
     psfs = psfs1(x,y)+psfs2(x,y)
+    ampc11 = ampc11 - bkgd1
     ampc21=ampc11*ampratio1
     ampc1=ampc11-ampc21
     psfc1 = models.Gaussian2D(amplitude = ampc1, x_mean=xcc1, y_mean=ycc1, x_stddev=sigmax1, y_stddev=sigmay1, theta=theta1)
