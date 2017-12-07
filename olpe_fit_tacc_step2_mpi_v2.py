@@ -3,6 +3,8 @@
 # the Lonestar 5 TACC supercomputer.
 # This is step 2 of the OLPE Fit pipeline.
 # For more information consult the OLPE Fit readme file.
+# Version 2 of OLPE Fit allows for the center of the narrow and wide Gaussians to be decoupled (offset).  The original version
+# forces the center of the two Gaussians to be the same.
 #
 # Input:
 #  - NIRC2 image file
