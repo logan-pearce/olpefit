@@ -6,7 +6,13 @@
 #                        Written by Logan A. Pearce                           #
 ###############################################################################
 
-OLPE Fit is a PSF fitting algorithm for astrometric measurements in NIRC2 images.  It is specifically designed for determining the astrometric position of a wide-orbit companion around the host star.  Rather than emperical PSF fitting, OLPE Fit models the star and companion PSF as the sum of two 2-D Gaussians - a narrow Gaussian modeling the diffraction limited core and a wider Gaussian capturing the Airy rings.  It uses a Gibbs Sampler Metroplis-Hasting Markov Chain Monte Carlo algorithm to optimize the parameters of model fit to image data.  The model is built using Astropy's 2-D gaussian model function.
+OLPE Fit is a PSF fitting algorithm for astrometric measurements in NIRC2 images.  It is specifically designed for 
+determining the astrometric position of a wide-orbit companion around the host star.  Rather than emperical PSF fitting, 
+OLPE Fit models the star and companion PSF as the sum of two 2-D Gaussians - a narrow Gaussian modeling the diffraction 
+limited core and a wider Gaussian capturing the Airy rings.  It uses a Gibbs Sampler Metroplis-Hasting Markov Chain Monte 
+Carlo algorithm to optimize the parameters of model fit to image data.  The model is built using Astropy's 2-D gaussian 
+model function.
+
 The model parameters are:
      - xcs: x pixel position for the center of the star
      - ycs: y pixel position for the star
@@ -16,8 +22,9 @@ The model parameters are:
      - dy: offset in the y direction
              The offsets allow for asymmetry in the Airy rings to be incorportated into the fit
      - amps: Amplitude of the model for the star
-       	     This parameter tracks the total amplitude of the model.  The amplitude of the wide Gaussian is computed as a fraction of the amplitude of the
-	     total amplitude, the narrow Gaussian amplitude is computed from that so that the peak to the wide plus peak of the narrow sums to the amps
+       	     This parameter tracks the total amplitude of the model.  The amplitude of the wide Gaussian is computed as a 
+	     fraction of the amplitude of the total amplitude, the narrow Gaussian amplitude is computed from that so that 
+	     the peak to the wide plus peak of the narrow sums to the amps
 	     parameter.  Sky background is not included in this parameter
      - ampc: Amplitude of the model for the companion.  Computed in the same way.
      The following parameters are shared by star and companion as they have the same point spread function:
