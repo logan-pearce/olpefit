@@ -14,8 +14,8 @@
 #    - Distortion solution look up tables from Yelda 2010 and Service 2016 (located in the same directory as this script)
 #    - Image header information
 # Outputs:
-#    - A text file called "epoch_positions_olpefit_pasep" which lists each image's sep, PA, and std dev on each for input into
-#        position agrigator.
+#    - A text file called "epoch_positions_olpefit_pasep" which lists each image's sep, PA, and std dev on each, S/N ratio for
+#        star and companion, and FWHM for input into position agrigator.
 #    - A text file called "epoch_positions_olpefit_log" which contains more detail about each image results
 #    - A corner plot of all parameters in the fit for each image
 #
@@ -136,7 +136,6 @@ length = c.shape[1]
 ncor = 48
 index = ncor
 xcs,ycs,xcc,ycc = np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor])
-dx,dy=np.zeros([length,ncor]),np.zeros([length,ncor])
 amps,ampc,ampratio,bkgd = np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor])
 sigmax,sigmay,sigmax2,sigmay2,theta,theta2,chisquare = np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor]),\
     np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor]),np.zeros([length,ncor])
@@ -144,9 +143,8 @@ sigmax,sigmay,sigmax2,sigmay2,theta,theta2,chisquare = np.zeros([length,ncor]),n
 for i in range(index):
     a = np.genfromtxt(directory+'/'+str(i)+'_finalarray_mpi.csv',delimiter=',')
     xcs[:,i],ycs[:,i],xcc[:,i],ycc[:,i] = a[0],a[1],a[2],a[3]
-    dx[:,i],dy[:,i] = a[4],a[5]
-    amps[:,i],ampc[:,i],ampratio[:,i],bkgd[:,i] = a[6],a[7],a[8],a[9]
-    sigmax[:,i],sigmay[:,i],sigmax2[:,i],sigmay2[:,i],theta[:,i],theta2[:,i],chisquare[:,i] = a[10],a[11],a[12],a[13],a[14],a[15],a[16]
+    amps[:,i],ampc[:,i],ampratio[:,i],bkgd[:,i] = a[4],a[5],a[6],a[7]
+    sigmax[:,i],sigmay[:,i],sigmax2[:,i],sigmay2[:,i],theta[:,i],theta2[:,i],chisquare[:,i] = a[8],a[9],a[10],a[11],a[12],a[13],a[14]
 
 #Determine the number of walkers used in the fit:
 NWalkers = ncor
@@ -156,8 +154,6 @@ xcs = xcs[additional_burnin:length,:]
 ycs = ycs[additional_burnin:length,:]
 xcc = xcc[additional_burnin:length,:] 
 ycc = ycc[additional_burnin:length,:]
-dx = dx[additional_burnin:length,:]
-dy = dy[additional_burnin:length,:]
 amps = amps[additional_burnin:length,:]
 ampc = ampc[additional_burnin:length,:]
 ampratio = ampratio[additional_burnin:length,:]
@@ -395,6 +391,26 @@ pa_mean,pa_stdev=np.median(pa_angle),np.std(pa_angle)
 print "r = ", sep_mean, "pa = ", pa_mean
 
 ##################################################################################################################
+########################################## Compute FWHM in image #################################################
+##################################################################################################################
+majorsigma = np.array([])
+sigx=np.array([])
+sigy=np.array([])
+for i in np.arange(0,len(sigmax)):
+    sigx = np.append(sigx,sigmax[i])
+for i in np.arange(0,len(sigmay)):
+    sigy = np.append(sigx,sigmay[i])
+    
+# Find the take the larger of the two sigma dimensions:
+for i,j in zip(sigx,sigy):
+    biggestsigma = np.max([i,j])
+    majorsigma = np.append(majorsigma,biggestsigma)
+
+# Compute FWHM as 2.355* the major axis sigma:
+FWHM = 2.355*majorsigma*pixscale
+FWHMmean,FWHMstd = np.mean(FWHM),np.std(FWHM)
+
+##################################################################################################################
 ######################################### Compute signal to noise ################################################
 ##################################################################################################################
 # S/N is computed as the ratio of the volume under the narrow diffraction limited Gaussian to the std dev in that
@@ -404,21 +420,29 @@ print "r = ", sep_mean, "pa = ", pa_mean
 vols = 2.*np.pi*sigmax*sigmay*(amps-bkgd)
 volc = 2.*np.pi*sigmax*sigmay*(ampc-bkgd)
 
+starsn = np.mean(vols)/np.std(vols)
+compsn = np.mean(volc)/np.std(volc)
+
 
 ##################################################################################################################
 ############################################## Write to file #####################################################
 ##################################################################################################################
 
 # File for import into positions analyzer script:
-strg = str(sep_mean)
+strg = str(imhdr['KOAID']) + ' , '
+strg += str(sep_mean)
 strg += ' , '
 strg += str(sep_stdev)
 strg += ' , '
 strg += str(pa_mean)
 strg += ' , '
-strg += str(pa_stdev)
+strg += str(pa_stdev) + ' , '
+strg += str(starsn) + ' , '
+strg += str(compsn) + ' , '
+strg += str(FWHMmean) + ' , '
+strg += str(FWHMstd)
 
-directory = filename.split('/')[0]+'/'+filename.split('/')[1]+'/epoch_positions_olpefit_pasep_v2'
+directory = filename.split('/')[0]+'/'+filename.split('/')[1]+'/epoch_positions_olpefit_pasep'
 
 f = open(directory, 'a')
 f.write(strg + "\n")
@@ -463,7 +487,7 @@ string += ' , '
 string += str(pa_stdev) + "\n"
 string += ' RA/Dec: '+ str(RA)+' , ' + str(Dec) + "\n"
 string += ' RA/Dec std devs: ' + str(RAstd) +' , ' + str(Decstd) + "\n"
-string += ' NSamples: ' + str((length-additional_burnin)*ncor/16) + "\n"
+string += ' NSamples: ' + str((length-additional_burnin)*ncor) + "\n"
 string += ' Star S/N: ' + str(np.mean(vols)/np.std(vols)) + "\n"
 string += ' Comp S/N: ' + str(np.mean(volc)/np.std(volc)) + "\n"
 string += ' Samp mode,Multisam,Coadds,Itime: '
