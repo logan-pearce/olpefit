@@ -462,7 +462,9 @@ strg += str(pa_mean)
 strg += ' , '
 strg += str(pa_stdev) + ' , '
 strg += str(starsn) + ' , '
-strg += str(compsn)
+strg += str(compsn)  + ' , '
+strg += str(FWHMmean) + ' , '
+strg += str(FWHMstd)
 
 directory = filename.split('/')[0]+'/'+filename.split('/')[1]+'/epoch_positions_olpefit_pasep'
 
