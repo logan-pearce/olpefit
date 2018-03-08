@@ -21,7 +21,7 @@
 #
 #
 # From the terminal, execute as follows:
-# python olpe_fit_tacc_step2_mpi.py path_to_image_file
+# python olpe_fit_tacc_step4_mpi.py path_to_image_file
 #
 # Written by Logan A. Pearce
 
