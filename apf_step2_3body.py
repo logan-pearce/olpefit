@@ -29,13 +29,13 @@
                   (for Lonestar 5, use 48 processes, for others use 24)
 
 # User defined settings:
-#    accept_min: script terminates when each parameters has been tried at least this many times.
+#    accept_min: script terminates when each parameter has been tried at least this many times.
 #    burn_in: the first X amount of steps in the chain will be thrown away to constitute burn in
 
 '''
 
-accept_min = 4
-burn_in = 5
+accept_min = 100000
+burn_in = 0
 
 import numpy as np
 from astropy.modeling import models, fitting
@@ -105,30 +105,23 @@ def build_2d_gaussian(xc,yc,dx,dy,total_amplitude,amplituderatio,background,narr
 
 def build_analytical_model(p):
     ''' Takes in model parameters to return a 2d model image:
-            p = xca,yca,xcb,ycb,dx,dy,ampa,ampb,ampratio,bkgd,sigmax,sigmay,sigmax2,sigmay2,theta,theta2 
-                (1 = narrow Gaussian, 2 = wide Gaussian; a = central star, b = companions)
+            p = xca,yca,xcb,ycb,xcc,ycc,dx,dy,ampa,ampb,ampc,ampratio,bkgdfill,sigmax,sigmay,sigmax2,sigmay2,theta,theta2 
+                (1 = narrow Gaussian, 2 = wide Gaussian; a = central star, b/c = companions)
         Input: 
             p: model parameters (1d array)
         Returns: 
             model: 2d model image
     '''
-    psfa = build_2d_gaussian(p[0],p[1],p[4],p[5],p[6],p[8],p[9],p[10],p[11],p[12],p[13],p[14],p[15])
-    psfb = build_2d_gaussian(p[2],p[3],p[4],p[5],p[7],p[8],p[9],p[10],p[11],p[12],p[13],p[14],p[15])
+    psfa = build_2d_gaussian(p[0],p[1],p[6],p[7],p[8],p[11],p[12],p[13],p[14],p[15],p[16],p[17],p[18])
+    psfb = build_2d_gaussian(p[2],p[3],p[6],p[7],p[9],p[11],p[12],p[13],p[14],p[15],p[16],p[17],p[18])
+    psfc = build_2d_gaussian(p[4],p[5],p[6],p[7],p[10],p[11],p[12],p[13],p[14],p[15],p[16],p[17],p[18])
 
     # Build the background level:
     bkgd = np.ndarray(shape=(xsize,ysize), dtype=float)
     bkgd.fill(p[12])
 
     # Assemble the model image:
-    psf = psfa + psfb + bkgd
-    return psf
-
-    # Build the background level:
-    bkgd = np.ndarray(shape=(xsize,ysize), dtype=float)
-    bkgd.fill(p[9])
-
-    # Assemble the model image:
-    psf = psfa + psfb + bkgd
+    psf = psfa + psfb + psfc + bkgd
     return psf
 
 def chi_squared(data,model,error):
@@ -209,11 +202,6 @@ err = np.sqrt(rnoise**2+pois**2)
 
 ################################ Set up some things: ###########################################
 
-# These parameter indicies need normal priors:
-norm = [0,1,2,3,4,5,8,14,15]
-# These parameter indicies need log normal priors:
-lognorm = [6,7,9,10,11,12,13]
-
 # Set jump widths:
 # (empirically determined)
 #positionswidth = 0.01 #pixels
@@ -229,7 +217,25 @@ lognorm = [6,7,9,10,11,12,13]
 #thetawidth = 0.008 #radians
 #theta2width = 0.01 #radians
 
-widths = np.array([0.01,0.01,0.3,0.3,0.08,0.09,0.0025,0.02,0.001,0.0008,0.002,0.002,0.001,0.001,0.008,0.01])
+widths = np.array([0.01,
+                       0.01,
+                       0.3,
+                       0.3,
+                       0.3,
+                       0.3,
+                       0.08,
+                       0.09,
+                       0.0025,
+                       0.02,
+                       0.02,
+                       0.001,
+                       0.0008,
+                       0.002,
+                       0.002,
+                       0.001,
+                       0.001,
+                       0.008,
+                       0.01])
 
 # Set model size to same size as the image:
 ysize,xsize = image.shape[1],image.shape[0]
@@ -246,21 +252,55 @@ sigma = FWHM/2.35
 fileguess = directory + d[-1].split('.')[-3] + '_initialguess'
 guess = np.loadtxt(open(fileguess,"rb"),delimiter=' ')
 # Get position of star/companion from step 1 output:
-xcs,ycs,xcc,ycc = guess[0],guess[1],guess[2],guess[3]
+xca,yca,xcb,ycb,xcc,ycc = guess[0],guess[1],guess[2],guess[3],guess[4],guess[5]
+
 # Use image values at those points as initial amplitude guess:
-amps = image[int(ycs-0.5+1),int(xcs-0.5+1)]
+ampa = image[int(yca-0.5+1),int(xca-0.5+1)]
+ampb = image[int(ycb-0.5+1),int(xcb-0.5+1)]
 ampc = image[int(ycc-0.5+1),int(xcc-0.5+1)]
 # Get the median noise level in a region of the image as the bkgd level:
-box = image[int(guess[5]):int(guess[5])+10, int(guess[4]):int(guess[4])+10]
+box = image[int(guess[7]):int(guess[7])+10, int(guess[6]):int(guess[6])+10]
 bkgd = np.median(box)
 
-parameters = np.array([xcs,ycs,xcc,ycc,0.,0.,amps,ampc,0.2,bkgd,sigma,sigma,sigma*3,sigma*3,0.,0.,0.])
+parameters = np.array([xca,yca,xcb,ycb,xcc,ycc,0.,0.,ampa,ampb,ampc,0.2,bkgd,sigma,sigma,sigma*3,sigma*3,0.,0.,0.])
+'''
+Parameters indicies:
+0 xca
+1 yca
+2 xcb
+3 ycb
+4 xcc
+5 ycc
+6 dx
+7 dy
+8 ampa
+9 ampb
+10 ampc
+11 ampratio
+12 bkgd
+13 sigmax
+14 sigmay
+15 sigmax2
+16 sigmay2
+17 theta
+18 theta2
+19 chisquared
+'''
+
+# These parameter indicies need normal priors:
+# the positions, dx,dy,ampratio,thetas
+norm = [0,1,2,3,4,5,6,7,11,17,18]
+# These parameter indicies need log normal priors:
+# the amps, bkgd,sigmas
+lognorm = [8,9,10,12,13,14,15,16]
 
 # Initialize parameter tracking arrays:
 total_tries,total_accept = np.zeros(parameters.shape[0]-1),np.zeros(parameters.shape[0]-1)
 # Initialize the total parameters tracking array:
+
 total_parameters = [[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],\
-                        [np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan]]
+                        [np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan]]
+
 # (Because of how np.hstack works, each element in the array must be its own list, sadly.)
 
 # Build initial model:
@@ -275,15 +315,17 @@ parameters[-1] = chi
 if rank == 0:
     print 'Initial guess:',parameters
 
+
 ################################### Begin loop ########################################################
 if rank==0:
     print
     print('Beginning loop...')
+    print 'Burn in = ',burn_in
 count = 0
 # Run the loop until each parameter has been tried a minimum number of times:
 while np.min(total_tries) < accept_min:
     # Select random parameter to vary:
-    rand = np.random.randint(0,16)
+    rand = np.random.randint(0,parameters.shape[0]-1)
     # Iterate the trials tracker:
     total_tries[rand] += 1
     # Get a new value for that parameter:
@@ -292,14 +334,23 @@ while np.min(total_tries) < accept_min:
     elif rand in lognorm:
         new = logproposal(parameters[rand],widths[rand],1)[0]
 
+    #print 'I will be testing index', rand
+    #print 'The old value is',parameters[rand]
+    #print 'using jump width ', widths[rand]
+    #print 'The new value is',new
+
     #Build a new model:
     parameters_proposal = parameters.copy()
     parameters_proposal[rand] = new
     model_proposal = build_analytical_model(parameters_proposal)
     # Get a new chi-squared value:
     chi_proposal = chi_squared(image_nanmask,model_proposal,err)
-    # Determine if the jump should be accepted:
+    #print 'old chisquared:',parameters[-1]
+    #print 'new chisquared:',chi_proposal
+    # Determine if it should be accepted:
     accept, p_accept, dice = accept_reject(parameters[-1],chi_proposal)
+    #print 'Was it accepted?', accept
+    #print 'the probability was',p_accept,'and the dice roll was:',dice
 
     # If accepted:
     if accept == 'yes':
@@ -318,7 +369,7 @@ while np.min(total_tries) < accept_min:
 
     #print 'Current state of parameters array:',parameters
 
-    #wait for all processes to check in:
+    # wait for all processes to check in so they stay in sync:
     comm.barrier()
 
     # Throw away the first X number of steps, to constitute burn in.  Start writing out each
@@ -330,7 +381,7 @@ while np.min(total_tries) < accept_min:
         stack_parameters = [[parameters[0]],[parameters[1]],[parameters[2]],[parameters[3]],\
                             [parameters[4]],[parameters[5]],[parameters[6]],[parameters[7]],[parameters[8]]\
                             ,[parameters[9]],[parameters[10]],[parameters[11]],[parameters[12]],[parameters[13]]\
-                            ,[parameters[14]],[parameters[15]],[parameters[16]]]
+                            ,[parameters[14]],[parameters[15]],[parameters[16]],[parameters[17]],[parameters[18]],[parameters[19]]]
                             # (Because of how np.hstack works, each element in the array must be its own list, sadly)
         total_parameters = np.hstack([total_parameters,stack_parameters])
 
@@ -350,6 +401,7 @@ while np.min(total_tries) < accept_min:
             
     if np.sum(total_tries) % 10 == 0 and rank == 0:
         print 'Loop count:',np.sum(total_tries)
+    if np.sum(total_tries) % 100 == 0 and rank == 0:
         print 'Acceptance rate:',total_accept / total_tries
 
 
