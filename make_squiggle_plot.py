@@ -19,7 +19,13 @@ proper motion with the host star.
 # Output:
 #      common proper motion plot
 #
-# usage: make_squiggle_plot.py
+usage: make_squiggle_plot.py [-h] [-m PLT_STYLE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m PLT_STYLE, --plt_style PLT_STYLE
+                        Name of matplotlib style sheet to use in plots.
+                        Default = mpl default
 
 '''
 
@@ -31,10 +37,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
+import argparse
 deg_to_mas = 3600000.
 mas_to_deg = 1./3600000.
 
-plt.style.use('supermongo')
+# Pull out arguments:
+parser = argparse.ArgumentParser()
+parser.add_argument("-m","--plt_style", help="Name of matplotlib style sheet to use in plots.  Default = mpl default",type=str)
+args = parser.parse_args()
+plt.style.use(args.plt_style)
 
 ############################### Observations ################################
 # Object from Gaia:
