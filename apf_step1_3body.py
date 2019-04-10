@@ -22,35 +22,32 @@
 #   Step 3: Output from step 2 (.csv files from each process)
 #
 # Output:
-#   Step 1: Text file of (x,y) location for object 1, object 2, background area
+#   Step 1: Text file of (x,y) location for object 1, object 2, object 3, background area
 #
 # usage (local): python apf_step1.py path_to_images_folder
-    example: python apf_step1.py ../1RXSJ1609/2009/N2.20090531.29966.LDIF.fits
+    example: python apf_step1_3body.py ../IC382-25/2013/
 
 # User defined settings:
 #    none
 
 '''
-
-import matplotlib
-matplotlib.use('TkAgg')
+ 
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
 import argparse
+from matplotlib.colors import LogNorm
 
 ############################################
 ## Make a list of image files in the folder:
 
 parser = argparse.ArgumentParser()
-parser.add_argument("directory", help="path from this script to directory containing image files to analyze, without \
-    concluding '/' ", type=str)
+parser.add_argument("folder",type=str)
 args = parser.parse_args()
-directory=args.directory
+directory=args.folder
 
-#os.system('ls '+directory+'/*.LDFBC.fits > list')
-os.system('ls '+directory+'/*.LDIF.fits > list')
+os.system('ls '+directory+'*.LDIF.fits > list')
 
 ############################################
 # Find the pixel with the max value within the aperture centered at the orginal guess
@@ -65,14 +62,14 @@ with open('list') as f:
 
 for line in z:
     print 'Loading image ',line
-    image1 = fits.open(line, ignore_missing_end=True)
+    image1 = fits.open(line)
     image = image1[0].data
    ############### Click on the image to get initial guess of center of companion and star ##################
-    print 'Press "D" key to select center of companion'
+    print 'Press "D" key to select center of A'
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.imshow(image,cmap='gray',origin='lower',vmin=np.percentile(image,5),vmax=np.percentile(image,97))
-    ax.set_title('Click center of companion')
+    ax.imshow(image,cmap='gray',origin='lower',norm=LogNorm())
+    ax.set_title('Hover mouse over A and type D')
     coordc = []
     def onclick(event):
         global ix, iy
@@ -89,14 +86,14 @@ for line in z:
     plt.show()
     print coordc
     coordc=coordc[0]
-    xmc,ymc = coordc[0],coordc[1]
-    xmc,ymc = int(xmc),int(ymc)
+    xma,yma = coordc[0],coordc[1]
+    xma,yma = int(xma),int(yma)
 
-    print 'Press "D" key to select center of star'
+    print 'Click to select center of B'
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.imshow(image,cmap='gray',origin='lower')
-    ax.set_title('Click center of star')
+    ax.imshow(image,cmap='gray',origin='lower',norm=LogNorm())
+    ax.set_title('Hover mouse over B and click')
     coords = []
     def onclick(event):
         global ix, iy
@@ -114,14 +111,39 @@ for line in z:
     plt.show()
     print coords
     coords=coords[0]
-    xms,yms = coords[0],coords[1]
-    xms,yms = int(xms),int(yms)
+    xmb,ymb = coords[0],coords[1]
+    xmb,ymb = int(xmb),int(ymb)
+
+    print 'Press "D" key to select center of B'
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.imshow(image,cmap='gray',origin='lower',norm=LogNorm(),interpolation='bilinear')
+    ax.set_title('Hover mouse over C click')
+    coords = []
+    def onclick(event):
+        global ix, iy
+        ix, iy = event.xdata, event.ydata
+        print 'x = %d, y = %d'%(
+            ix, iy)
+
+        global coords
+        coords.append((ix, iy))
+        if len(coords) == 1:
+            fig.canvas.mpl_disconnect(cid)
+        plt.close()
+        return coords
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    plt.show()
+    print coords
+    coords=coords[0]
+    xmc,ymc = coords[0],coords[1]
+    xmc,ymc = int(xmc),int(ymc)
 
     print 'Press "D" key to select backgroung sample'
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(image,cmap='gray',origin='lower',vmin=np.percentile(image,5),vmax=np.percentile(image,95))
-    ax.set_title('Click an empty sky area')
+    ax.set_title('Hover mouse over an empty sky area and click')
     coordc = []
     def onclick(event):
         global ix, iy
@@ -142,34 +164,36 @@ for line in z:
     bkgdx,bkgdy = int(bkgdx),int(bkgdy)
 
     #### Make an aperture around the click location and find the pixel with the max flux within that aperture #####
-    ymins=yms-11
-    ymaxs=ymins+21
-    xmins=xms-11
-    xmaxs=xmins+21
+    ymins,ymaxs=ycb-4,ycb+4
+    xmins,xmaxs=xcb-4,xcb+4
     aprs = image[ymins:ymaxs,xmins:xmaxs]
     #Find max pixel within aperture and call that pixel the initial guess:
     cs = findmax(aprs) #[0]=Y,[1]=X
-    xcs,ycs = xmins+cs[1]+0.5,ymins+cs[0]+0.5
-    print 'Initial guess for star location:',xcs,ycs
+    xcb,ycb = xmins+cs[1],ymins+cs[0]
+    print 'Initial guess for B location:',xcb,ycb
 
-    # Initial guess of companion location of max:
-    yminc=ymc-11
-    ymaxc=yminc+21
-    xminc=xmc-11
-    xmaxc=xminc+21
-    aprc = image[yminc:ymaxc,xminc:xmaxc]
-    cc = findmax(aprc)
-    xcc,ycc = xminc+cc[1]+0.5,yminc+cc[0]+0.5
-    print 'Initial guess for companion location:',xcc,ycc
+    ymins,ymaxs=ycc-4,ycc+4
+    xmins,xmaxs=xcc-4,xcc+4
+    aprs = image[ymins:ymaxs,xmins:xmaxs]
+    #Find max pixel within aperture and call that pixel the initial guess:
+    cs = findmax(aprs) #[0]=Y,[1]=X
+    xcc,ycc = xmins+cs[1],ymins+cs[0]
+    print 'Initial guess for C location:',xcc,ycc
+
+    ymins,ymaxs=yca-4,yca+4
+    xmins,xmaxs=xca-4,xca+4
+    aprs = image[ymins:ymaxs,xmins:xmaxs]
+    #Find max pixel within aperture and call that pixel the initial guess:
+    cs = findmax(aprs) #[0]=Y,[1]=X
+    xca,yca = xmins+cs[1],ymins+cs[0]
+    print 'Initial guess for A location:',xca,yca
 
     # Write out initial guess to file:
-    #newfile = directory+'/'+line.split('.')[-1]+ '_initialguess'
-    newline = line.split('/')[-1]
-    newfile = directory+'/'+newline.split('.')[2]+ '_initialguess'
-    os.system('touch '+newfile)
+    os.system('touch '+folder+line.split('.')[2]+ '_initialguess')
+    newfile = directory+'/'+line.split('.')[2]+ '_initialguess'
     print newfile
     #newfile = line.split('.')[2]+ '_initialguess'
-    string = str(xcs)+' '+str(ycs)+' '+str(xcc)+' '+str(ycc)+' '+str(bkgdx)+' '+str(bkgdy)
+    string = str(xca)+' '+str(yca)+' '+str(xcb)+' '+str(ycb)+' '+str(xcc)+' '+str(ycc)+' '+str(bkgdx)+' '+str(bkgdy)
     k = open(newfile, 'w')
     k.write(string + "\n")
     k.close()

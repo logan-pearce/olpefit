@@ -34,8 +34,8 @@
 
 '''
 
-accept_min = 4
-burn_in = 5
+accept_min = 100000
+burn_in = 0
 
 import numpy as np
 from astropy.modeling import models, fitting
@@ -248,8 +248,8 @@ guess = np.loadtxt(open(fileguess,"rb"),delimiter=' ')
 # Get position of star/companion from step 1 output:
 xcs,ycs,xcc,ycc = guess[0],guess[1],guess[2],guess[3]
 # Use image values at those points as initial amplitude guess:
-amps = image[int(ycs-0.5+1),int(xcs-0.5+1)]
-ampc = image[int(ycc-0.5+1),int(xcc-0.5+1)]
+amps = image[int(ycs-0.5),int(xcs-0.5)]
+ampc = image[int(ycc-0.5-1),int(xcc-0.5-1)]
 # Get the median noise level in a region of the image as the bkgd level:
 box = image[int(guess[5]):int(guess[5])+10, int(guess[4]):int(guess[4])+10]
 bkgd = np.median(box)
@@ -350,6 +350,7 @@ while np.min(total_tries) < accept_min:
             
     if np.sum(total_tries) % 10 == 0 and rank == 0:
         print 'Loop count:',np.sum(total_tries)
+    if np.sum(total_tries) % 100 == 0 and rank == 0:
         print 'Acceptance rate:',total_accept / total_tries
 
 
