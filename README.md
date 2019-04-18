@@ -22,10 +22,20 @@ Supporting scripts in this repository: <br>
     - make_squiggle_plots.py: Use relative astrometery from LAPF and Gaia position/proper motion to test for common proper <br>
     - motion between companion and star.
 
+![model_residuals](model_residuals_all.png)
+The analytical psf model generated in APF, compared with an example image.  The model consists of two 2D Gaussian functions, one to mdoel the diffraction-limited core, and a second to capture the wings.  The free parameters are:<br>
+- x/y pixel postion for star and companion <br>
+- x/y offset* for central peak of wide gaussain compared to narrow <br>
+- amplitudes for wide and narrow gaussian and the ratio* of wide to narrow peak <br>
+- standard deviation* in x and y direction for wide and narrow <br>
+- rotation angle* for wide and narrow gaussian <br>
 
+(* common value for star and companion)
+
+This method for PSF fitting achieves Poisson-limited precision when combined with Keck/NIRC2 precision calibrations.  It has been used to generate results published in Pearce et.al 2019.
 
 ## Author
-The project was completed by Logan Pearce (http://www.loganpearcescience.com), under the mentorship of Dr Adam Kraus at the University of Texas at Austin.
+The project was completed by Logan Pearce (http://www.loganpearcescience.com), under the mentorship of Dr. Adam Kraus at the University of Texas at Austin.
 
 
 ## Acknowledgments
