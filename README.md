@@ -5,19 +5,22 @@ Fits a Gaussian 2d PSF model to Keck/NIRC2 data for companion to a central (unob
 using a Gibbs sampler Metroplis-Hastings MCMC.  Runs in parallel, where each process acts an 
 independent walker.  For details, see Pearce et. al. 2019.
 
-LAPF works in three steps: <br>
-       apf_step 1: Locate central object, companion, and empty sky area in the image <br>
-       apf_step 2: MCMC iterates on parameters of 2D model until a minimum number of trials <br>
+LAPF works in three steps (plus an optional 4th): <br>
+    apf_step 1: Locate central object, companion, and empty sky area in the image <br>
+    apf_step 2a: MCMC using only one walker to fine-tune the intial guess before unleashing the walkers
+               in step 2.  Optional step.  Step 2 will either take input from the output of step 2a or
+               step 1 (set by the -i flag in step 2). <br>
+    apf_step 2: MCMC iterates on parameters of 2D model until a minimum number of trials <br>
                are conducted on each parameter.  Each process outputs their chain to an <br>
                individual file. <br>
                Designed to run on the Texas Advance Computing Center Lonestar 5 compter in parallel processing <br>
-       apf_step 3: Take in output of step 2 and apply corrections, including the NIRC2 distortion solutions of <br>
+    apf_step 3: Take in output of step 2 and apply corrections, including the NIRC2 distortion solutions of <br>
                Yelda et.al. 2010 and Service et.al. 2016, to determine relative separation <br>
                and position angle and corresponding metrics. <br>
 
 Supporting scripts in this repository: <br>
-make_squiggle_plots.py: Use relative astrometery from LAPF and Gaia position/proper motion to test for common proper <br>
-motion between companion and star.
+    make_squiggle_plots.py: Use relative astrometery from LAPF and Gaia position/proper motion to test for common proper <br>
+    motion between companion and star.
 
 
 
