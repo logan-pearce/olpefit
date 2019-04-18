@@ -19,8 +19,7 @@ LAPF works in three steps (plus an optional 4th): <br>
                and position angle and corresponding metrics. <br>
 
 Supporting scripts in this repository: <br>
-    - make_squiggle_plots.py: Use relative astrometery from LAPF and Gaia position/proper motion to test for common proper <br>
-    - motion between companion and star.
+    - make_squiggle_plots.py: Use relative astrometery from LAPF and Gaia position/proper motion to test for common proper motion between companion and star.
 
 ![model_residuals](model_residuals_all.png)
 The analytical psf model generated in APF, compared with an example image.  The model consists of two 2D Gaussian functions, one to mdoel the diffraction-limited core, and a second to capture the wings.  The free parameters are:<br>
