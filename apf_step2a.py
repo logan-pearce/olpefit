@@ -1,12 +1,15 @@
 '''
 ############################ LAPF: Logan's Analytical PSF Fitter ##############################
-                                          Step 2
+                                          Step 2a
                                written by Logan Pearce, 2019
 ###############################################################################################
     Fits a Gaussian 2d PSF model to NIRC2 data for companion to a central (unobscured) star
     using a Gibbs sampler Metroplis-Hastings MCMC.  Runs in parallel, where each process acts an 
     independent walker.  For details, see Pearce et. al. 2019.
        Step 1: Locate central object, companion, and empty sky area in the image
+       Step 2a: Performs an inital run with one walker to initially explore the space.  Refines the
+                initial guess before unleashing walkers.  (Optional)
+               Run as normal python process not in mpi mode.  
        Step 2: MCMC iterates on parameters of 2D model until a minimum number of trials
                are conducted on each parameter.  Each process outputs their chain to an 
                individual file
@@ -18,24 +21,22 @@
 #
 # Input:
 #   Step 1: Image (fits file)
-#   Step 2: Image (fits file), output from step 1 (text file)
+#   Step 2a: Image (fits file), output from step 1 (text file)
+#   Step 2: Image (fits file), output from step 1 (text file) , or step2a if used (csv)
 #   Step 3: Output from step 2 (.csv files from each process)
 #
 # Output:
 #   Step 3: 
 #
-# usage (local): mpiexec -n number_of_processes python apf_step2.py ../1RXSJ1609/2009/N2.20090531.29966.LDIF.fits
-        (tacc): sbatch script with the execute command: ibrun python apf_step2.py ../1RXSJ1609/2009/N2.20090531.29966.LDIF.fits
-                  (for Lonestar 5, use 48 processes, for others use 24)
+# usage (local): python apf_step2a.py ../1RXSJ1609/2009/N2.20090531.29966.LDIF.fits
+        (tacc): sbatch script with the execute command: python apf_step2a.py ../1RXSJ1609/2009/N2.20090531.29966.LDIF.fits
 
 # User defined settings:
-#    accept_min: script terminates when each parameters has been tried at least this many times.
-#    burn_in: the first X amount of steps in the chain will be thrown away to constitute burn in
+#    n_steps: how many steps the MCMC should take in step 2a.  Script terminates when the chain contains this many entries.
 
 '''
 
-accept_min = 100000
-burn_in = 6000
+n_steps = 5000
 
 import numpy as np
 from astropy.modeling import models, fitting
@@ -46,15 +47,6 @@ import os
 import warnings
 import csv
 import argparse
-
-from mpi4py import MPI
-from mpi4py.MPI import ANY_SOURCE
-
-# define the communicator
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-ncor = size
 
 warnings.filterwarnings("ignore") #ignore runtime warnings given by masked math later in calculations
 
@@ -153,8 +145,6 @@ def accept_reject(chisquare_current,chisquare_proposal):
 ######## Read in image:
 parser = argparse.ArgumentParser()
 parser.add_argument("image",type=str)
-parser.add_argument("-i","--initial_guess_option",help="Choose which file to take in as initial guess.  Enter -i 1 for \
-    step 1, -i 2a for step 2a.",type=str)
 args = parser.parse_args()
 
 image = fits.open(args.image)[0].data
@@ -169,8 +159,7 @@ for i in range(len(d)-1):
 # Place the output in a directory named imagenumber_apf_results:
 output_directory =  directory + d[-1].split('.')[-3] + '_apf_results/'
 print output_directory
-if rank == 0:
-    os.system('mkdir '+ output_directory)
+os.system('mkdir '+ output_directory)
 
 ######## Mask saturated pixels so they do not contribute to the fit:
 itime = float(imhdr['itime'])*1000.
@@ -186,10 +175,9 @@ else:
 
 # Make a new copy of the image where pixels at 80% of saturation are masked out:
 image_nanmask = np.ma.masked_greater(image, 0.8*satlevel)
-if rank==0:
-    print 'Max pixel value in image:',np.max(image)
-    print 'Masking pixels greater than ',0.8*satlevel
-    print 'I have masked',np.product(np.shape(image))-image_nanmask.count(),'pixels'
+print 'Max pixel value in image:',np.max(image)
+print 'Masking pixels greater than ',0.8*satlevel
+print 'I have masked',np.product(np.shape(image))-image_nanmask.count(),'pixels'
 
 ########## Calculate the error in each pixel:
 # Readnoise error:
@@ -245,33 +233,19 @@ FWHM = FWHM / Pixscale
 sigma = FWHM/2.35
 
 ##### Pull in output from step 1 and build initial parameters array:
-if args.initial_guess_option == '2a':
-    if rank == 0:
-        print 'I am taking the initial guess from Step 2a output'
-    input_directory =  directory + d[-1].split('.')[-3] + '_apf_results/'
-    # Take initial guess from step 2a output:
-    fileguess = input_directory + 'step2a.csv'
-    a = np.genfromtxt(fileguess, delimiter=',')
-    guess = a[-1:]
-    parameters = guess[0]
+fileguess = directory + d[-1].split('.')[-3] + '_initialguess'
+guess = np.loadtxt(open(fileguess,"rb"),delimiter=' ')
+# Get position of star/companion from step 1 output:
+xcs,ycs,xcc,ycc = guess[0],guess[1],guess[2],guess[3]
+# Use image values at those points as initial amplitude guess:
+amps = image[int(ycs-1),int(xcs-1)]
+ampc = image[int(ycc-1),int(xcc-1)]
+# Get the median noise level in a region of the image as the bkgd level:
+box = image[int(guess[5]):int(guess[5])+10, int(guess[4]):int(guess[4])+10]
+bkgd = np.median(box)
 
-else:
-    if rank == 0:
-        print 'I am taking the initial guess from Step 1 output'
-    fileguess = directory + d[-1].split('.')[-3] + '_initialguess'
-    guess = np.loadtxt(open(fileguess,"rb"),delimiter=' ')
+parameters = np.array([xcs,ycs,xcc,ycc,0.,0.,amps,ampc,0.2,bkgd,sigma,sigma,sigma*3,sigma*3,0.,0.,0.])
 
-    # Get position of star/companion from step 1 output:
-    xcs,ycs,xcc,ycc = guess[0],guess[1],guess[2],guess[3]
-    # Use image values at those points as initial amplitude guess:
-    amps = image[int(ycs-1),int(xcs-1)]
-    ampc = image[int(ycc-1),int(xcc-1)]
-    # Get the median noise level in a region of the image as the bkgd level:
-    box = image[int(guess[5]):int(guess[5])+10, int(guess[4]):int(guess[4])+10]
-    bkgd = np.median(box)
-    
-    parameters = np.array([xcs,ycs,xcc,ycc,0.,0.,amps,ampc,0.2,bkgd,sigma,sigma,sigma*3,sigma*3,0.,0.,0.])
-    
 # Initialize parameter tracking arrays:
 total_tries,total_accept = np.zeros(parameters.shape[0]-1),np.zeros(parameters.shape[0]-1)
 # Initialize the total parameters tracking array:
@@ -283,21 +257,18 @@ total_parameters = [[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.nan],[np.na
 model = build_analytical_model(parameters)
 # Get initial chisquared value:
 chi = chi_squared(image_nanmask,model,err)
-if rank == 0:
-    print 'Found initial chi-squared:',chi
+print 'Found initial chi-squared:',chi
 # Enter the initial chi squared into the parameters array:
 parameters[-1] = chi
 
-if rank == 0:
-    print 'Initial guess:',parameters
+print 'Initial guess:',parameters
 
 ################################### Begin loop ########################################################
-if rank==0:
-    print
-    print('Beginning loop...')
+print
+print('Beginning loop...')
 count = 0
 # Run the loop until each parameter has been tried a minimum number of times:
-while np.min(total_tries) < accept_min:
+while count < n_steps:
     # Select random parameter to vary:
     rand = np.random.randint(0,16)
     # Iterate the trials tracker:
@@ -332,16 +303,12 @@ while np.min(total_tries) < accept_min:
 
     count += 1
 
-    #print 'Current state of parameters array:',parameters
-
-    #wait for all processes to check in:
-    comm.barrier()
+    print 'Current state of parameters array:',parameters
 
     # Throw away the first X number of steps, to constitute burn in.  Start writing out each
     # walker's status after burn in is accomplished:
     if count >= burn_in:
-        if count == burn_in and rank == 0:
-            print 'Burn in accomplished, commence writing out progress.'
+        print 'Burn in accomplished, commence writing out progress.'
         # Stack the current parameters status array onto the previous arrays:
         stack_parameters = [[parameters[0]],[parameters[1]],[parameters[2]],[parameters[3]],\
                             [parameters[4]],[parameters[5]],[parameters[6]],[parameters[7]],[parameters[8]]\
@@ -354,26 +321,26 @@ while np.min(total_tries) < accept_min:
         # (Overwrites the old file each time)
         if np.sum(total_tries) % 10 == 0:
             # Write chains to file:
-            b = open(output_directory + str(rank)+'_finalarray_mpi.csv', 'w')
+            b = open(output_directory + 'step2a.csv', 'w')
             a = csv.writer(b)
             a.writerows(np.transpose(total_parameters))
             b.close()
             # Write acceptance rate:
-            z = open(output_directory + str(rank)+'_acceptance_rate.csv', 'w')
+            z = open(output_directory + 'step2a_acceptance_rate', 'w')
             acceptance_rate = total_accept / total_tries
             z.write(str(acceptance_rate))
             z.close()
             
-    if np.sum(total_tries) % 10 == 0 and rank == 0:
+    if np.sum(total_tries) % 10 == 0:
         print 'Loop count:',np.sum(total_tries)
-    if np.sum(total_tries) % 100 == 0 and rank == 0:
+    if np.sum(total_tries) % 100 == 0:
         print 'Acceptance rate:',total_accept / total_tries
 
 
-print 'Rank ',rank, 'done with loop'
+print 'done with loop'
 print
-print 'The output for xcs looks like:'
-c = np.genfromtxt(output_directory+str(rank)+'_finalarray_mpi.csv',delimiter=',')
+print 'The output looks like:'
+c = np.genfromtxt(output_directory + 'step2a.csv',delimiter=',')
 print c[:,0]
 
 
